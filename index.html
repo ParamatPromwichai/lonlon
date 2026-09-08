@@ -2,7 +2,7 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Time Bomb - เกมระเบิดเวลา</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;500;700&display=swap');
@@ -32,6 +32,9 @@
             height: 100vh;
             overflow: hidden;
             transition: background 0.3s ease;
+            touch-action: manipulation; /* ป้องกันการซูมเมื่อเคาะรัวๆ บนมือถือ */
+            -webkit-user-select: none; /* ป้องกันการคลุมดำข้อความเมื่อเคาะรัวๆ */
+            user-select: none;
         }
 
         /* Glassmorphism Card */
