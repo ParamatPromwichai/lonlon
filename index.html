@@ -264,6 +264,9 @@
 </head>
 <body>
 
+    <!-- Audio Element สำหรับเสียงผี -->
+    <audio id="jumpscare-audio" src="scary.mp3" preload="auto"></audio>
+
     <!-- Menu Screen -->
     <div class="glass-card" id="screen-menu">
         <h1>ระเบิดเวลา 💣</h1>
@@ -313,10 +316,9 @@
         
         let players = [];
         let currentPlayerIndex = 0;
-        
-        let audioCtx;
-        let scaryBuffer = null;
-        let currentAudioSource = null;
+
+        const jumpScareAudio = document.getElementById('jumpscare-audio');
+        let audioUnlocked = false;
 
         const ui = {
             menu: document.getElementById('screen-menu'),
@@ -331,52 +333,38 @@
             playerListContainer: document.getElementById('player-list-container')
         };
 
-        // โหลดและถอดรหัสเสียงล่วงหน้าด้วย Web Audio API เพื่อแก้ปัญหาเสียงมาดีเลย์ (Zero Latency)
-        async function loadSound() {
-            try {
-                window.AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!audioCtx) audioCtx = new AudioContext();
-                
-                const response = await fetch('scary.mp3');
-                const arrayBuffer = await response.arrayBuffer();
-                scaryBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                console.log("Scary sound preloaded perfectly.");
-            } catch (e) {
-                console.error("Failed to load sound:", e);
-            }
-        }
-        
-        window.addEventListener('load', loadSound);
-
-        function playScarySound() {
-            if (!audioCtx) {
-                // Fallback ถ้าระบบหลักไม่ทำงาน
-                let a = new Audio('scary.mp3');
-                a.play();
-                return;
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-            if (scaryBuffer) {
-                if (currentAudioSource) {
-                    try { currentAudioSource.stop(); } catch(e){}
-                }
-                currentAudioSource = audioCtx.createBufferSource();
-                currentAudioSource.buffer = scaryBuffer;
-                currentAudioSource.connect(audioCtx.destination);
-                currentAudioSource.start(0);
+        // ฟังก์ชันสำคัญสำหรับปลดล็อกเสียงบน iPad / iOS
+        // ระบบ iOS จะไม่อนุญาตให้เสียงดังขึ้นมาเองหากไม่มีการคลิก
+        // เราจึงต้องทำเป็นกดเล่นเสียงเงียบๆ ไว้ก่อน 1 ครั้ง
+        function unlockAudio() {
+            if (audioUnlocked) return;
+            
+            jumpScareAudio.volume = 0; // ปิดเสียงชั่วคราว
+            const playPromise = jumpScareAudio.play();
+            
+            if (playPromise !== undefined) {
+                playPromise.then(() => {
+                    jumpScareAudio.pause();
+                    jumpScareAudio.currentTime = 0;
+                    jumpScareAudio.volume = 1; // เปิดเสียงคืน
+                    audioUnlocked = true;
+                }).catch(error => {
+                    console.log("Audio unlock failed:", error);
+                });
+            } else {
+                jumpScareAudio.pause();
+                jumpScareAudio.currentTime = 0;
+                jumpScareAudio.volume = 1;
+                audioUnlocked = true;
             }
         }
 
         // ---------- SETUP LOGIC ----------
         function showSetup() {
+            unlockAudio(); // ปลดล็อกเสียงเมื่อผู้เล่นคลิกปุ่มแรก
+            
             ui.menu.classList.add('hidden');
             ui.setup.classList.remove('hidden');
-            
-            if (audioCtx && audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
             
             // รีเซ็ตผู้เล่นเป็น 2 คนเริ่มต้น
             ui.playerListContainer.innerHTML = '';
@@ -410,6 +398,8 @@
 
         // ---------- GAME LOGIC ----------
         function initGame() {
+            unlockAudio(); // ย้ำอีกครั้งเผื่อพลาด
+            
             collectPlayers();
             ui.setup.classList.add('hidden');
             ui.gameplay.classList.remove('hidden');
@@ -440,6 +430,8 @@
         }
 
         function handleAction() {
+            unlockAudio();
+            
             if (gameState === 'IDLE') {
                 startTimer();
             } else if (gameState === 'RUNNING') {
@@ -488,13 +480,15 @@
             ui.playerIndicator.innerText = `👤 ตาของ: ${nextPlayerName}`;
             ui.playerIndicator.className = `player-badge badge-color-${currentPlayerIndex % 5}`;
             
-            ui.gameMessage.innerText = `รอดตัว! ส่งต่อให้ ${nextPlayerName} ลุยต่อ`;
+            ui.gameMessage.innerText = `รอดตัว! ส่งให้ ${nextPlayerName} ลุยต่อ`;
         }
 
         function triggerJumpscare() {
             ui.gameplay.classList.add('hidden');
             ui.jumpscare.style.display = 'flex';
-            playScarySound(); // เล่นเสียงแบบไร้ความหน่วง
+            
+            jumpScareAudio.currentTime = 0;
+            jumpScareAudio.play().catch(e => console.log('Scare audio error:', e));
         }
 
         function resetToMenu() {
@@ -502,9 +496,8 @@
             ui.menu.classList.remove('hidden');
             gameState = 'IDLE';
             
-            if (currentAudioSource) {
-                try { currentAudioSource.stop(); } catch(e){}
-            }
+            jumpScareAudio.pause();
+            jumpScareAudio.currentTime = 0;
         }
     </script>
 </body>
